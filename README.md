@@ -21,6 +21,10 @@ If this project helps you, you can support its maintenance here:
 - **Number validation** — verify that a phone number is registered on WhatsApp before (or without) sending
 - **Delivery reliability** — implements the Baileys `getMessage` retry contract backed by a sent-message store, an external retry-counter cache, and a cacheable Signal key store to avoid the "waiting for this message" class of failures
 - **Operational endpoints** — restart a stuck socket, reset a corrupted session, or log a tenant out remotely
+- **API key authentication** — protect all endpoints with `X-API-Key` header; separate key tiers for normal vs operational access
+- **Rate limiting** — sliding-window per-IP and global rate limits; stricter limits for operational endpoints to prevent abuse
+- **Request queue** — concurrency-limiting queue for heavy endpoints; prevents overload from burst traffic
+- **Health check** — `GET /health` endpoint for monitoring server status and queue stats
 - **Tested** — unit and integration tests via the built-in Node.js test runner (no framework dependencies)
 
 ## Requirements
@@ -177,6 +181,94 @@ Log out from WhatsApp (removes the linked device on the phone), delete the sessi
 
 ## Configuration
 
+## API Key Authentication
+
+All endpoints can be protected with API key authentication via the `X-API-Key` request header. There are two independent key sets:
+
+- **`WA_API_KEYS`** — required for normal endpoints (messaging, status, QR, number check)
+- **`WA_OPERATIONAL_API_KEYS`** — required for operational endpoints (`/restart-socket`, `/restart`, `/logout`)
+
+Both accept comma-separated keys. If either env is empty, authentication is disabled for that tier (all requests are allowed). Keys are compared using timing-safe equality to prevent timing attacks.
+
+Example `.env`:
+
+```bash
+WA_API_KEYS=read-key-1,write-key-2
+WA_OPERATIONAL_API_KEYS=super-admin-key
+```
+
+Behavior summary:
+
+| Endpoint | Key tier | Env checked |
+|---|---|---|
+| `GET /status`, `GET /qr`, `GET /check-number`, `POST /send-message`, `POST /send-media` | Normal | `WA_API_KEYS` |
+| `POST /restart-socket`, `POST /restart`, `POST /logout` | Operational | `WA_OPERATIONAL_API_KEYS`, falls back to `WA_API_KEYS` if empty |
+
+Request example:
+
+```bash
+curl -X POST http://localhost:5000/send-message \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: write-key-2' \
+  -d '{"phone": "081234567890", "message": "Hello!"}'
+```
+
+Missing or invalid key returns `401`:
+
+```json
+{ "error": "unauthorized: invalid or missing X-API-Key header" }
+```
+
+## Rate Limiting
+
+Sliding-window rate limiting is enabled by default on all endpoints. There are two tiers:
+
+**Normal endpoints** — per-IP and global limits:
+
+| Env variable | Default | Description |
+|---|---|---|
+| `WA_RATE_LIMIT_IP_WINDOW_MS` | `60000` | Per-IP sliding window in milliseconds |
+| `WA_RATE_LIMIT_IP_MAX` | `30` | Max requests per IP per window |
+| `WA_RATE_LIMIT_GLOBAL_WINDOW_MS` | `60000` | Global sliding window in milliseconds |
+| `WA_RATE_LIMIT_GLOBAL_MAX` | `200` | Max requests globally per window |
+
+**Operational endpoints** (`/restart-socket`, `/restart`, `/logout`) — stricter limits:
+
+| Env variable | Default | Description |
+|---|---|---|
+| `WA_RATE_LIMIT_OPERATIONAL_WINDOW_MS` | `300000` | Operational sliding window (5 minutes) |
+| `WA_RATE_LIMIT_OPERATIONAL_MAX` | `5` | Max operational requests per IP per window |
+
+When a limit is hit, the server responds with `429` and includes `Retry-After`, `X-RateLimit-Limit-*`, `X-RateLimit-Remaining-*`, and `X-RateLimit-Reset-*` headers.
+
+```json
+{ "error": "too many requests from this IP, try again later" }
+```
+
+## Request Queue
+
+Heavy endpoints (`/send-message`, `/send-media`, `/restart-socket`, `/restart`, `/logout`) are queued when the server is at capacity. This prevents overload from burst traffic.
+
+| Env variable | Default | Description |
+|---|---|---|
+| `WA_QUEUE_MAX_CONCURRENT` | `10` | Max requests being processed simultaneously |
+| `WA_QUEUE_MAX_SIZE` | `50` | Max requests waiting in the queue |
+| `WA_QUEUE_TIMEOUT_MS` | `30000` | Max time a request can wait in queue before 504 |
+
+Queued requests receive `X-Queue-Position` and `X-Queue-Active` headers. When the queue is full, new requests get `503`. When a request times out waiting, it gets `504`.
+
+## Health check
+
+```
+GET /health
+```
+
+Returns server status and queue stats (no auth or rate limit required):
+
+```json
+{ "status": "ok", "queue": { "active": 2, "queued": 0 } }
+```
+
 ## Incoming message webhooks
 
 Enable reliable delivery with `WA_WEBHOOK_ENABLED=true`, `WA_WEBHOOK_URL`, and a non-empty `WA_WEBHOOK_SECRET`. Optional settings are `WA_WEBHOOK_TIMEOUT_MS` (10000), `WA_WEBHOOK_MAX_ATTEMPTS` (8), `WA_WEBHOOK_INCLUDE_GROUPS` (false), `WA_WEBHOOK_INCLUDE_FROM_ME` (false), and `WA_WEBHOOK_PROCESS_APPEND` (true).
@@ -226,6 +318,17 @@ The `.env` file is ignored by Git. Supported variables:
 | `WA_WEBHOOK_INCLUDE_GROUPS` | `false` | Include group messages. |
 | `WA_WEBHOOK_INCLUDE_FROM_ME` | `false` | Include messages sent by this account. |
 | `WA_WEBHOOK_PROCESS_APPEND` | `true` | Capture post-cutoff history-sync messages. |
+| `WA_API_KEYS` | *(empty)* | Comma-separated API keys for normal endpoints. Empty disables auth. |
+| `WA_OPERATIONAL_API_KEYS` | *(empty)* | Comma-separated API keys for operational endpoints. Falls back to `WA_API_KEYS` when empty. |
+| `WA_RATE_LIMIT_IP_WINDOW_MS` | `60000` | Per-IP rate limit window (ms). |
+| `WA_RATE_LIMIT_IP_MAX` | `30` | Max requests per IP per window. |
+| `WA_RATE_LIMIT_GLOBAL_WINDOW_MS` | `60000` | Global rate limit window (ms). |
+| `WA_RATE_LIMIT_GLOBAL_MAX` | `200` | Max global requests per window. |
+| `WA_RATE_LIMIT_OPERATIONAL_WINDOW_MS` | `300000` | Operational endpoint rate limit window (ms). |
+| `WA_RATE_LIMIT_OPERATIONAL_MAX` | `5` | Max operational requests per IP per window. |
+| `WA_QUEUE_MAX_CONCURRENT` | `10` | Max concurrent requests being processed. |
+| `WA_QUEUE_MAX_SIZE` | `50` | Max requests waiting in queue. |
+| `WA_QUEUE_TIMEOUT_MS` | `30000` | Queue wait timeout (ms). |
 
 ### Using SQLite instead of file storage
 
@@ -250,14 +353,18 @@ If your deployment fails with `gyp ERR! stack Error: not found: make`, keep `WA_
 src/
 ├── index.ts          # Entry point: starts the HTTP server, restores saved sessions
 ├── app.ts            # Express app and routes (root routes in single mode, /:session in multi)
-├── config.ts         # Runtime tenancy config from env
+├── config.ts         # Runtime tenancy, rate limit, auth, and queue config from env
 ├── session.ts        # Shared session-name validation
 ├── whatsapp.ts       # WhatsAppSession class (one Baileys socket per tenant) + session manager
 ├── auth-store.ts     # Baileys auth state backed by the configured persistent store
 ├── message-store.ts  # Sent-message store backing the getMessage retry contract
 ├── storage.ts        # file/SQLite storage drivers
 ├── db.ts             # session-list compatibility helpers
-└── utils.ts          # Phone normalization, media-type detection
+├── utils.ts          # Phone normalization, media-type detection
+├── idempotency.ts    # Idempotent request deduplication
+├── rate-limit.ts     # Sliding-window rate limiter (per-IP + global, normal + operational)
+├── auth.ts           # API key authentication middleware (timing-safe comparison)
+└── queue.ts          # Concurrency-limiting request queue
 ```
 
 Storage keeps auth, sent messages, webhook outbox/meta, and idempotent request collections in both backends:
