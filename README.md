@@ -21,10 +21,13 @@ If this project helps you, you can support its maintenance here:
 - **Number validation** — verify that a phone number is registered on WhatsApp before (or without) sending
 - **Delivery reliability** — implements the Baileys `getMessage` retry contract backed by a sent-message store, an external retry-counter cache, and a cacheable Signal key store to avoid the "waiting for this message" class of failures
 - **Operational endpoints** — restart a stuck socket, reset a corrupted session, or log a tenant out remotely
+<<<<<<< HEAD
 - **API key authentication** — protect all endpoints with `X-API-Key` header; separate key tiers for normal vs operational access
 - **Rate limiting** — sliding-window per-IP and global rate limits; stricter limits for operational endpoints to prevent abuse
 - **Request queue** — concurrency-limiting queue for heavy endpoints; prevents overload from burst traffic
 - **Health check** — `GET /health` endpoint for monitoring server status and queue stats
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 - **Tested** — unit and integration tests via the built-in Node.js test runner (no framework dependencies)
 
 ## Requirements
@@ -181,6 +184,7 @@ Log out from WhatsApp (removes the linked device on the phone), delete the sessi
 
 ## Configuration
 
+<<<<<<< HEAD
 ## API Key Authentication
 
 All endpoints can be protected with API key authentication via the `X-API-Key` request header. There are two independent key sets:
@@ -269,6 +273,8 @@ Returns server status and queue stats (no auth or rate limit required):
 { "status": "ok", "queue": { "active": 2, "queued": 0 } }
 ```
 
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 ## Incoming message webhooks
 
 Enable reliable delivery with `WA_WEBHOOK_ENABLED=true`, `WA_WEBHOOK_URL`, and a non-empty `WA_WEBHOOK_SECRET`. Optional settings are `WA_WEBHOOK_TIMEOUT_MS` (10000), `WA_WEBHOOK_MAX_ATTEMPTS` (8), `WA_WEBHOOK_INCLUDE_GROUPS` (false), `WA_WEBHOOK_INCLUDE_FROM_ME` (false), and `WA_WEBHOOK_PROCESS_APPEND` (true).
@@ -318,6 +324,7 @@ The `.env` file is ignored by Git. Supported variables:
 | `WA_WEBHOOK_INCLUDE_GROUPS` | `false` | Include group messages. |
 | `WA_WEBHOOK_INCLUDE_FROM_ME` | `false` | Include messages sent by this account. |
 | `WA_WEBHOOK_PROCESS_APPEND` | `true` | Capture post-cutoff history-sync messages. |
+<<<<<<< HEAD
 | `WA_API_KEYS` | *(empty)* | Comma-separated API keys for normal endpoints. Empty disables auth. |
 | `WA_OPERATIONAL_API_KEYS` | *(empty)* | Comma-separated API keys for operational endpoints. Falls back to `WA_API_KEYS` when empty. |
 | `WA_RATE_LIMIT_IP_WINDOW_MS` | `60000` | Per-IP rate limit window (ms). |
@@ -329,6 +336,8 @@ The `.env` file is ignored by Git. Supported variables:
 | `WA_QUEUE_MAX_CONCURRENT` | `10` | Max concurrent requests being processed. |
 | `WA_QUEUE_MAX_SIZE` | `50` | Max requests waiting in queue. |
 | `WA_QUEUE_TIMEOUT_MS` | `30000` | Queue wait timeout (ms). |
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 
 ### Using SQLite instead of file storage
 
@@ -353,18 +362,26 @@ If your deployment fails with `gyp ERR! stack Error: not found: make`, keep `WA_
 src/
 ├── index.ts          # Entry point: starts the HTTP server, restores saved sessions
 ├── app.ts            # Express app and routes (root routes in single mode, /:session in multi)
+<<<<<<< HEAD
 ├── config.ts         # Runtime tenancy, rate limit, auth, and queue config from env
+=======
+├── config.ts         # Runtime tenancy config from env
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 ├── session.ts        # Shared session-name validation
 ├── whatsapp.ts       # WhatsAppSession class (one Baileys socket per tenant) + session manager
 ├── auth-store.ts     # Baileys auth state backed by the configured persistent store
 ├── message-store.ts  # Sent-message store backing the getMessage retry contract
 ├── storage.ts        # file/SQLite storage drivers
 ├── db.ts             # session-list compatibility helpers
+<<<<<<< HEAD
 ├── utils.ts          # Phone normalization, media-type detection
 ├── idempotency.ts    # Idempotent request deduplication
 ├── rate-limit.ts     # Sliding-window rate limiter (per-IP + global, normal + operational)
 ├── auth.ts           # API key authentication middleware (timing-safe comparison)
 └── queue.ts          # Concurrency-limiting request queue
+=======
+└── utils.ts          # Phone normalization, media-type detection
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 ```
 
 Storage keeps auth, sent messages, webhook outbox/meta, and idempotent request collections in both backends:

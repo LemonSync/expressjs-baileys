@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import QRCode from 'qrcode';
 import { getOrCreateSession, getSessions, removeSession, WhatsAppSession } from './whatsapp.js';
+<<<<<<< HEAD
 import { getTenancyConfig, getRateLimitConfig, getAuthConfig, getQueueConfig, isValidCountryCode } from './config.js';
 import { SESSION_NAME_RE } from './session.js';
 import { normalizePhone, parseMediaAttachment } from './utils.js';
@@ -15,14 +16,26 @@ export function createApp(): Express {
     const rateLimitConfig = getRateLimitConfig();
     const authConfig = getAuthConfig();
     const queueConfig = getQueueConfig();
+=======
+import { getTenancyConfig, isValidCountryCode } from './config.js';
+import { SESSION_NAME_RE } from './session.js';
+import { normalizePhone, parseMediaAttachment } from './utils.js';
+import { beginIdempotentRequest, completeIdempotentRequest, computeRequestHash, failIdempotentRequest } from './idempotency.js';
+
+export function createApp(): Express {
+    const tenancy = getTenancyConfig();
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
     const app = express();
     app.use(cors());
     app.use(express.json());
 
+<<<<<<< HEAD
     const { normalLimiter, operationalLimiter } = createRateLimiter(rateLimitConfig);
     const { normalAuth, operationalAuth } = createAuthMiddleware(authConfig);
     const queue = createRequestQueue(queueConfig);
 
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
     const getQrPath = (wa: WhatsAppSession): string => (tenancy.mode === 'multi' ? `/${wa.id}/qr` : '/qr');
     const resolveCountryCode = (value: unknown): string | null => {
         if (value === undefined) {
@@ -35,12 +48,17 @@ export function createApp(): Express {
         return isValidCountryCode(normalized) ? normalized : null;
     };
 
+<<<<<<< HEAD
     app.get('/health', (_req, res) => {
         res.json({ status: 'ok', queue: queue.getStats() });
     });
 
     if (tenancy.mode === 'multi') {
         app.get('/sessions', normalLimiter, normalAuth, (_req, res) => {
+=======
+    if (tenancy.mode === 'multi') {
+        app.get('/sessions', (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
             res.json(getSessions().map((s) => s.getStatus()));
         });
     } else {
@@ -65,12 +83,20 @@ export function createApp(): Express {
         return getOrCreateSession(sessionId);
     };
 
+<<<<<<< HEAD
     router.get('/status', normalLimiter, normalAuth, (_req, res) => {
+=======
+    router.get('/status', (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const wa = getSession(res);
         res.json(wa.getStatus());
     });
 
+<<<<<<< HEAD
     router.get('/qr', normalLimiter, normalAuth, async (_req, res) => {
+=======
+    router.get('/qr', async (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const wa = getSession(res);
         if (wa.getStatus().status === 'connected') {
             return res.json({ message: 'already connected' });
@@ -93,7 +119,11 @@ export function createApp(): Express {
         `);
     });
 
+<<<<<<< HEAD
     router.get('/check-number', normalLimiter, normalAuth, async (req, res) => {
+=======
+    router.get('/check-number', async (req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const countryCode = resolveCountryCode(req.query.countryCode);
         if (!countryCode) {
             return res.status(400).json({ error: 'invalid countryCode query parameter' });
@@ -118,7 +148,11 @@ export function createApp(): Express {
         }
     });
 
+<<<<<<< HEAD
     router.post('/send-message', normalLimiter, normalAuth, (req, res, next) => queue.enqueue(req, res, next), async (req, res) => {
+=======
+    router.post('/send-message', async (req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const { phone, message, countryCode, idempotencyKey } = req.body ?? {};
 
         if (typeof message !== 'string' || !message.trim()) {
@@ -171,7 +205,11 @@ export function createApp(): Express {
         }
     });
 
+<<<<<<< HEAD
     router.post('/send-media', normalLimiter, normalAuth, (req, res, next) => queue.enqueue(req, res, next), async (req, res) => {
+=======
+    router.post('/send-media', async (req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const { phone, media, filename, caption, countryCode, idempotencyKey } = req.body ?? {};
 
         const effectiveCountryCode = resolveCountryCode(countryCode);
@@ -228,19 +266,31 @@ export function createApp(): Express {
         }
     });
 
+<<<<<<< HEAD
     router.post('/restart-socket', operationalLimiter, operationalAuth, (req, res, next) => queue.enqueue(req, res, next), (_req, res) => {
+=======
+    router.post('/restart-socket', (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const wa = getSession(res);
         wa.restartSocket();
         res.json({ success: true, message: 'the websocket was restarted and will reconnect automatically' });
     });
 
+<<<<<<< HEAD
     router.post('/restart', operationalLimiter, operationalAuth, (req, res, next) => queue.enqueue(req, res, next), async (_req, res) => {
+=======
+    router.post('/restart', async (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const wa = getSession(res);
         await wa.restart();
         res.json({ success: true, message: `session reset, scan a new QR at ${getQrPath(wa)}` });
     });
 
+<<<<<<< HEAD
     router.post('/logout', operationalLimiter, operationalAuth, (req, res, next) => queue.enqueue(req, res, next), async (_req, res) => {
+=======
+    router.post('/logout', async (_req, res) => {
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
         const wa = getSession(res);
         await wa.logout();
         removeSession(wa.id);

@@ -1,7 +1,10 @@
 import { SESSION_NAME_RE } from './session.js';
+<<<<<<< HEAD
 import type { RateLimitConfig } from './rate-limit.js';
 import type { AuthConfig } from './auth.js';
 import type { QueueConfig } from './queue.js';
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 
 export type TenancyMode = 'single' | 'multi';
 
@@ -18,6 +21,7 @@ export type WebhookConfig =
 
 const truthy = (value: string | undefined): boolean => ['true', '1', 'yes'].includes(value?.trim().toLowerCase() ?? '');
 
+<<<<<<< HEAD
 function positiveInteger(name: string, fallback: number): number {
     const raw = process.env[name];
     if (raw === undefined || raw.trim() === '') return fallback;
@@ -53,6 +57,8 @@ export function getQueueConfig(): QueueConfig {
     };
 }
 
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
 export function getWebhookConfig(): WebhookConfig {
     if (!truthy(process.env.WA_WEBHOOK_ENABLED)) return { enabled: false };
     const url = process.env.WA_WEBHOOK_URL?.trim();
@@ -65,6 +71,16 @@ export function getWebhookConfig(): WebhookConfig {
         throw new Error('WA_WEBHOOK_URL must be a valid http/https URL');
     }
     if (!secret) throw new Error('WA_WEBHOOK_SECRET is required when webhooks are enabled');
+<<<<<<< HEAD
+=======
+    const positiveInteger = (name: string, fallback: number): number => {
+        const raw = process.env[name];
+        if (raw === undefined || raw.trim() === '') return fallback;
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer`);
+        return value;
+    };
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
     return {
         enabled: true, url, secret,
         timeoutMs: positiveInteger('WA_WEBHOOK_TIMEOUT_MS', 10000),

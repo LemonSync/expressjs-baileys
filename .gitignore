@@ -4,4 +4,7 @@ dist/
 *.log
 .env
 .DS_Store
+<<<<<<< HEAD
 .git/
+=======
+>>>>>>> 75c6028854e98a1c1fa509c0af19658e93a16afb
